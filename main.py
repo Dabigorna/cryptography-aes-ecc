@@ -1,3 +1,5 @@
+# This code was made by https://github.com/Dabigorna
+#M = main
 import threading
 import time
 import server_service
@@ -8,15 +10,15 @@ def run_all():
     print("!!!STARTING HYBRID CRYPTOSYSTEM (AES + ECC)!!!")
     print("="*50 + "\n")
 
-    # Start server thread
+    # Spin up the server in a separate background thread
     server_thread = threading.Thread(target=server_service.start_server)
     server_thread.daemon = True 
     server_thread.start()
 
-    # Wait server online
+    # Give the server a second to bind to the port and listen
     time.sleep(1)
 
-    # Run client with secret msg
+    # Fire up the client with our custom message
     msg = "This repo owner is very clever"
     client_handler.start_client(secret_msg=msg)
 

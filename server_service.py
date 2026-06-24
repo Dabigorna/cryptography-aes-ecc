@@ -1,3 +1,6 @@
+# This code was made by https://github.com/Dabigorna
+#S = Server
+
 import socket
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives import serialization, hashes
@@ -8,13 +11,12 @@ def start_server():
     privkey = ec.generate_private_key(ec.SECP256K1())
     pubkey =  privkey.public_key()
 
-    # Turning the keys into bytes so it can navigate via net
+    # Convert key to PEM so it can travel safely through the network
     pubkeyBytes = pubkey.public_bytes(
         encoding=serialization.Encoding.PEM,
         format=serialization.PublicFormat.SubjectPublicKeyInfo
     )
 
-    # socket config
     HOST = "127.0.0.1"
     PORT = 65432
 
@@ -26,32 +28,32 @@ def start_server():
     conection, adress = server.accept()
 
     try:
-        # Send the server ECC public key to the client
         print("S: Sending ECC public key to client...")
         conection.sendall(pubkeyBytes)
         
         print("S: Receiving encrypted data from client...")
+        # First 4 bytes tell us the exact size of the client's public key
         tmp_bytes = conection.recv(4)
         if not tmp_bytes: return
         tam_client_key = int.from_bytes(tmp_bytes, byteorder='big')
         
+        # Unpack everything in order: client key, 12-byte nonce, and the actual ciphertext
         pub_key_client_bytes = conection.recv(tam_client_key)
         nonce = conection.recv(12)
         textC = conection.recv(4096)
 
-        # Print da mensagem criptografada recebida na rede
         print(f"S: Cryptogram received (Hex): {textC.hex()}")
 
-        # Reading the client's PEM public key and doing ECDH
+        # Load client's key and execute ECDH to find the shared secret
         pub_key_client = serialization.load_pem_public_key(pub_key_client_bytes)
         shared_secret = privkey.exchange(ec.ECDH(), pub_key_client)
         
-        # Key derivation
+        # Hash the shared secret with SHA256 to get a clean 32-byte AES key
         digest = hashes.Hash(hashes.SHA256())
         digest.update(shared_secret)
         aes_key = digest.finalize()
 
-        # Decrypting
+        # Decrypt everything using AES-GCM
         aesgcm = AESGCM(aes_key)
         decrypted_msg = aesgcm.decrypt(nonce, textC, None)
 
